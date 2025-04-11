@@ -29,16 +29,52 @@ function preload(){
   //sprite can be animated
   
 }
- 
+ let bird;
+ let hasLanded=false;
+ let cursors;
 function create()
 {
   const background = this.add.image(0,0,'background').setOrigin(0,0);
   const roads = this.physics.add.staticGroup();
+  
+
+  const topColumns =this.physics.add.staticGroup({
+    key:'column',
+    repeat:1,
+    setXY:{x:200, y:0, stepX:300}
+  });
+
+  const bottomColumns=this.physics.add.staticGroup(
+    {
+      key:'column',
+      repeat:1,
+      setXY:{x :350,y: 400,stepX:300},
+    }
+  );
   const road =roads.create(400,568,'road').setScale(2).refreshBody();
 
+  bird=this.physics.add.sprite(0,50, 'bird').setScale(2);
+  bird.setBounce(0.2);
+  bird.setCollideWorldBounds(true);
+
+   this.physics.add.overlap(bird,road, () =>hasLanded=true,null,this);
+  this.physics.add.collider(bird,road);
+  
+cursors=this.input.keyboard.createCursorKeys(); /*.createCursorKeys() method creates and returns an object containing 4 hotkeys for Up, Down, Left and Right, and also Space Bar and shift.*/
 }
+
  
 function update()
 {
-  
+  if(cursors.up.isDown &&!hasLanded){
+    bird.setVelocityY(-160);
+   
+  }
+  if(!hasLanded){
+    bird.body.velocity.x=50;
+  }
+  if(hasLanded){
+    bird.body.velocity.x=0;
+  }
+
 }
