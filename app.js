@@ -1,12 +1,12 @@
 let config = {
-  renderer: Phaser.AUTO,
+  type: Phaser.AUTO,
   width: 800,
   height: 600,
   physics: {
     default: 'arcade',
     arcade: {
       gravity: { y: 300 },
-      debug: false
+      debug: false // Change to true to visualize hitboxes
     }
   },
   scene: {
@@ -22,12 +22,14 @@ let game = new Phaser.Game(config);
 let bird;
 let hasLanded = false;
 let hasBumped = false;
-let isGameStarted = false;
 let gameActive = false;
 let cursors;
 let messagesToPlayer;
 let birdSpeed = 100;
-let columns;
+let topColumns;
+let bottomColumns;
+const COLUMN_SPACING = 300;
+const GAP_SIZE = 150;
 
 function preload() {
   this.load.image('background', 'assets/background.png');
@@ -43,58 +45,70 @@ function create() {
   // Background
   const background = this.add.image(0, 0, 'background').setOrigin(0, 0);
 
-  // Road (ground)
+  // Ground (road)
   const roads = this.physics.add.staticGroup();
   const road = roads.create(400, 568, 'road').setScale(2).refreshBody();
 
   // Columns (obstacles)
-  const topColumns = this.physics.add.staticGroup({
-    key: 'column',
-    repeat: 1,
-    setXY: { x: 200, y: 0, stepX: 300 }
-  });
+  topColumns = this.physics.add.staticGroup();
+  bottomColumns = this.physics.add.staticGroup();
 
-  const bottomColumns = this.physics.add.staticGroup({
-    key: 'column',
-    repeat: 1,
-    setXY: { x: 350, y: 400, stepX: 300 }
-  });
+  // Generate column pairs with vertical gaps
+  for (let i = 0; i < 3; i++) {
+    let x = 400 + i * COLUMN_SPACING;
+    let gapY = Phaser.Math.Between(150, 400); // vertical center of gap
+
+    // Create top column just above the gap
+    let top = topColumns.create(x, gapY - GAP_SIZE / 2, 'column');
+    top.setOrigin(0.5, 1); // bottom aligned
+    top.refreshBody();
+
+    // Create bottom column just below the gap
+    let bottom = bottomColumns.create(x, gapY + GAP_SIZE / 2, 'column');
+    bottom.setOrigin(0.5, 0); // top aligned
+    bottom.refreshBody();
+  }
 
   // Bird setup
   bird = this.physics.add.sprite(100, 300, 'bird').setScale(2);
   bird.setBounce(0.2);
   bird.setCollideWorldBounds(true);
 
-  // Collision detection
+  // Collisions
   this.physics.add.collider(bird, road, () => {
     hasLanded = true;
     if (gameActive) gameOver(this);
-  }, null, this);
+  });
 
   this.physics.add.collider(bird, topColumns, () => {
     hasBumped = true;
     if (gameActive) gameOver(this);
-  }, null, this);
+  });
 
   this.physics.add.collider(bird, bottomColumns, () => {
     hasBumped = true;
     if (gameActive) gameOver(this);
-  }, null, this);
+  });
 
   // Controls
   cursors = this.input.keyboard.createCursorKeys();
 
   this.input.keyboard.on('keydown-UP', () => {
+    if (!gameActive && (hasLanded || hasBumped)) {
+      resetGame(this);
+      return;
+    }
+
     if (!gameActive && !hasLanded && !hasBumped) {
       startGame(this);
     }
-    
+
     if (gameActive) {
       bird.setVelocityY(-160);
     }
   });
 
-  // UI Text
+  // UI message
   messagesToPlayer = this.add.text(0, 0, 'Press UP ARROW to start', {
     fontFamily: '"Comic Sans MS", times, serif',
     fontSize: "20px",
@@ -108,21 +122,19 @@ function create() {
 
 function update() {
   if (gameActive && !hasLanded && !hasBumped) {
-    // Constant forward movement
     bird.setVelocityX(birdSpeed);
-    
-    // Check for win condition (reached right side)
-    if (bird.x > 750) {
+
+    // Win condition
+    if (bird.x > 400 + (COLUMN_SPACING * 3)) {
       gameActive = false;
       bird.setVelocityX(0);
-      messagesToPlayer.text = 'Congratulations! You won!';
+      messagesToPlayer.text = '🎉 Congratulations! You won! 🎉';
     }
   }
 }
 
 function startGame(scene) {
   gameActive = true;
-  isGameStarted = true;
   bird.setVelocityX(birdSpeed);
   messagesToPlayer.text = 'Press UP to fly!\nAvoid the columns!';
 }
@@ -130,11 +142,30 @@ function startGame(scene) {
 function gameOver(scene) {
   gameActive = false;
   bird.setVelocityX(0);
-  messagesToPlayer.text = 'Game Over!\nPress UP to try again';
-  
-  // Reset game state after a delay
-  scene.time.delayedCall(1000, () => {
-    hasLanded = false;
-    hasBumped = false;
-  });
+  messagesToPlayer.text = '💥 Game Over!\nPress UP to try again';
 }
+
+function resetGame(scene) {
+  bird.setPosition(100, 300);
+  bird.setVelocity(0);
+  hasLanded = false;
+  hasBumped = false;
+  startGame(scene);
+}
+// Reset columns
+  topColumns.clear(true, true);
+  bottomColumns.clear(true, true);
+
+  // Regenerate columns
+  for (let i = 0; i < 3; i++) {
+    let x = 400 + i * COLUMN_SPACING;
+    let gapY = Phaser.Math.Between(150, 400); // vertical center of gap
+
+    let top = topColumns.create(x, gapY - GAP_SIZE / 2, 'column');
+    top.setOrigin(0.5, 1);
+    top.refreshBody();
+
+    let bottom = bottomColumns.create(x, gapY + GAP_SIZE / 2, 'column');
+    bottom.setOrigin(0.5, 0);
+    bottom.refreshBody();
+  }
