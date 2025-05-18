@@ -18,6 +18,17 @@ let config = {
 
 let game = new Phaser.Game(config);
 
+// Game variables
+let bird;
+let hasLanded = false;
+let hasBumped = false;
+let isGameStarted = false;
+let gameActive = false;
+let cursors;
+let messagesToPlayer;
+let birdSpeed = 100;
+let columns;
+
 function preload() {
   this.load.image('background', 'assets/background.png');
   this.load.image('road', 'assets/road.png');
@@ -28,19 +39,15 @@ function preload() {
   });
 }
 
-let bird;
-let hasLanded = false;
-let hasBumped = false;
-let isGameStarted = false;
-let cursors;
-let messagesToPlayer;
-
 function create() {
+  // Background
   const background = this.add.image(0, 0, 'background').setOrigin(0, 0);
 
+  // Road (ground)
   const roads = this.physics.add.staticGroup();
   const road = roads.create(400, 568, 'road').setScale(2).refreshBody();
 
+  // Columns (obstacles)
   const topColumns = this.physics.add.staticGroup({
     key: 'column',
     repeat: 1,
@@ -53,51 +60,81 @@ function create() {
     setXY: { x: 350, y: 400, stepX: 300 }
   });
 
-  bird = this.physics.add.sprite(0, 50, 'bird').setScale(2);
+  // Bird setup
+  bird = this.physics.add.sprite(100, 300, 'bird').setScale(2);
   bird.setBounce(0.2);
   bird.setCollideWorldBounds(true);
 
-  this.physics.add.collider(bird, road, () => hasLanded = true, null, this);
-  this.physics.add.collider(bird, topColumns);
-  this.physics.add.collider(bird, bottomColumns);
-  this.physics.add.overlap(bird, topColumns, () => hasBumped = true, null, this);
-  this.physics.add.overlap(bird, bottomColumns, () => hasBumped = true, null, this);
+  // Collision detection
+  this.physics.add.collider(bird, road, () => {
+    hasLanded = true;
+    if (gameActive) gameOver(this);
+  }, null, this);
 
+  this.physics.add.collider(bird, topColumns, () => {
+    hasBumped = true;
+    if (gameActive) gameOver(this);
+  }, null, this);
+
+  this.physics.add.collider(bird, bottomColumns, () => {
+    hasBumped = true;
+    if (gameActive) gameOver(this);
+  }, null, this);
+
+  // Controls
   cursors = this.input.keyboard.createCursorKeys();
 
   this.input.keyboard.on('keydown-UP', () => {
-    if (!isGameStarted) {
-      isGameStarted = true;
-      messagesToPlayer.text = 'Instructions: Press ↑ to stay up\nAvoid columns!';
+    if (!gameActive && !hasLanded && !hasBumped) {
+      startGame(this);
     }
-    if (!hasLanded && !hasBumped) {
+    
+    if (gameActive) {
       bird.setVelocityY(-160);
     }
   });
 
-  messagesToPlayer = this.add.text(0, 0, 'Instructions: Press ↑ to start', {
+  // UI Text
+  messagesToPlayer = this.add.text(0, 0, 'Press UP ARROW to start', {
     fontFamily: '"Comic Sans MS", times, serif',
     fontSize: "20px",
     color: "white",
-    backgroundColor: "black"
+    backgroundColor: "black",
+    padding: { x: 10, y: 5 }
   });
 
   Phaser.Display.Align.In.BottomCenter(messagesToPlayer, background, 0, 50);
 }
 
 function update() {
-  if (isGameStarted && !hasLanded && !hasBumped) {
-    bird.setVelocityX(50);
-  } else {
-    bird.setVelocityX(0);
+  if (gameActive && !hasLanded && !hasBumped) {
+    // Constant forward movement
+    bird.setVelocityX(birdSpeed);
+    
+    // Check for win condition (reached right side)
+    if (bird.x > 750) {
+      gameActive = false;
+      bird.setVelocityX(0);
+      messagesToPlayer.text = 'Congratulations! You won!';
+    }
   }
+}
 
-  if (hasLanded || hasBumped) {
-    messagesToPlayer.text = 'Oh no! You crashed!';
-  }
+function startGame(scene) {
+  gameActive = true;
+  isGameStarted = true;
+  bird.setVelocityX(birdSpeed);
+  messagesToPlayer.text = 'Press UP to fly!\nAvoid the columns!';
+}
 
-  if (bird.x > 750 && !hasBumped && !hasLanded) {
-    bird.setVelocityY(40);
-    messagesToPlayer.text = 'Congrats! You won!';
-  }
+function gameOver(scene) {
+  gameActive = false;
+  bird.setVelocityX(0);
+  messagesToPlayer.text = 'Game Over!\nPress UP to try again';
+  
+  // Reset game state after a delay
+  scene.time.delayedCall(1000, () => {
+    hasLanded = false;
+    hasBumped = false;
+  });
 }
