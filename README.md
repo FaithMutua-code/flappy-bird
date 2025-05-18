@@ -2,7 +2,11 @@
 
 A simple Flappy Bird clone built with Phaser 3, featuring basic physics, collision detection, and obstacle avoidance gameplay.
 
-
+<p align="center">
+  <img src="./assets/image.png" width="600" alt="Flappy Bird Clone Gameplay">
+  <br>
+  <em>Gameplay screenshot showing bird and columns</em>
+</p>
 
 ## Features
 
